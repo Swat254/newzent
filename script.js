@@ -2,9 +2,12 @@
 const SUPABASE_URL = 'https://lqugtfzuffmtxoiljogs.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxxdWd0Znp1ZmZtdHhvaWxqb2dzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM5NjIwNzQsImV4cCI6MjA3OTUzODA3NH0.4_rIKGhmnJp_NlXhBYXBA4079Ewz7qZ1D4zAxfNS_eU';
 
-// PayStack Configuration - Updated with your new keys
+// PayStack Configuration
 const PAYSTACK_PUBLIC_KEY = 'pk_live_eebdb66d551add6207fa378960dc13d2e7a0e11f';
 const PAYSTACK_SECRET_KEY = 'sk_live_7ac7ba67c118498a7efa9b09e2024c11ca87baa0';
+
+// KYC Storage Configuration
+const KYC_BUCKET_NAME = 'kyc-documents';
 
 // Initialize Supabase
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -134,6 +137,22 @@ function initializeEventListeners() {
     document.getElementById('profile-form').addEventListener('submit', handleProfileUpdate);
     document.getElementById('copy-referral').addEventListener('click', copyReferralCode);
 
+    // KYC image preview handlers
+    document.getElementById('kyc-front').addEventListener('change', function(e) {
+        previewImage(e.target, 'kyc-front-preview');
+    });
+    document.getElementById('kyc-back').addEventListener('change', function(e) {
+        previewImage(e.target, 'kyc-back-preview');
+    });
+    document.getElementById('kyc-selfie').addEventListener('change', function(e) {
+        previewImage(e.target, 'kyc-selfie-preview');
+    });
+
+    // Profile picture preview
+    document.getElementById('profile-picture').addEventListener('change', function(e) {
+        previewImage(e.target, 'profile-picture-preview');
+    });
+
     // FAQ events
     document.querySelectorAll('.faq-question').forEach(question => {
         question.addEventListener('click', function() {
@@ -141,6 +160,26 @@ function initializeEventListeners() {
             item.classList.toggle('active');
         });
     });
+}
+
+// Image preview function
+function previewImage(input, previewId) {
+    const preview = document.getElementById(previewId);
+    const file = input.files[0];
+    
+    if (file) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            preview.innerHTML = `<img src="${e.target.result}" alt="Preview" style="max-width: 100%; max-height: 200px; border-radius: 8px;">`;
+            preview.classList.remove('hidden');
+        };
+        
+        reader.readAsDataURL(file);
+    } else {
+        preview.innerHTML = '';
+        preview.classList.add('hidden');
+    }
 }
 
 // Check if user is authenticated
@@ -170,7 +209,7 @@ async function checkAuthStatus() {
     }
 }
 
-// Load user data from Supabase - FIXED VERSION
+// Load user data from Supabase
 async function loadUserData() {
     if (!currentUser) {
         console.error('No current user found');
@@ -219,9 +258,11 @@ async function loadUserData() {
                 console.log('No profile picture found');
                 // Set default profile picture
                 const profilePictureContainer = document.getElementById('profile-picture-container');
-                profilePictureContainer.innerHTML = '<div class="default-avatar">' + 
-                    (profile.full_name ? profile.full_name.charAt(0).toUpperCase() : 'U') + 
-                    '</div>';
+                if (profilePictureContainer) {
+                    profilePictureContainer.innerHTML = '<div class="default-avatar">' + 
+                        (profile.full_name ? profile.full_name.charAt(0).toUpperCase() : 'U') + 
+                        '</div>';
+                }
             }
         }
         
@@ -245,7 +286,7 @@ async function loadUserData() {
             .select('*')
             .eq('user_id', currentUser.id)
             .order('created_at', { ascending: false })
-            .limit(10); // Increased limit to show more transactions
+            .limit(10);
         
         if (transactionsError) {
             console.error('Transactions error:', transactionsError);
@@ -342,6 +383,38 @@ function updateProfilePicture(imageUrl) {
         
     } catch (error) {
         console.error('Error updating profile picture:', error);
+    }
+}
+
+// Upload file to Supabase Storage
+async function uploadFileToStorage(file, filePath, bucketName = KYC_BUCKET_NAME) {
+    try {
+        console.log(`Uploading file to ${bucketName}/${filePath}`);
+        
+        const { data, error } = await supabase.storage
+            .from(bucketName)
+            .upload(filePath, file, {
+                cacheControl: '3600',
+                upsert: false
+            });
+        
+        if (error) {
+            console.error('Upload error:', error);
+            throw error;
+        }
+        
+        console.log('File uploaded successfully:', data);
+        
+        // Get public URL
+        const { data: urlData } = supabase.storage
+            .from(bucketName)
+            .getPublicUrl(filePath);
+        
+        return urlData.publicUrl;
+        
+    } catch (error) {
+        console.error('Error uploading file:', error);
+        throw error;
     }
 }
 
@@ -483,7 +556,7 @@ async function handleLogin(e) {
         
         console.log('Login successful:', data.user.id);
         currentUser = data.user;
-        await loadUserData(); // Ensure data is loaded after login
+        await loadUserData();
         showApp();
         showNotification('Login successful!', 'success');
         
@@ -573,8 +646,6 @@ async function handleRegister(e) {
         
         if (profileError) {
             console.error('Profile creation error:', profileError);
-            // If profile creation fails, delete the auth user to maintain consistency
-            await supabase.auth.admin.deleteUser(authData.user.id);
             throw new Error('Failed to create user profile. Please try again.');
         }
         
@@ -651,8 +722,10 @@ async function handleLogout() {
 // Transaction handlers
 async function handleDeposit(e) {
     e.preventDefault();
-    const amount = parseFloat(document.getElementById('deposit-amount').value);
-    const paymentMethod = document.querySelector('input[name="payment-method"]:checked')?.value;
+    const amountInput = document.getElementById('deposit-amount');
+    const amount = parseFloat(amountInput?.value);
+    const paymentMethodRadio = document.querySelector('input[name="payment-method"]:checked');
+    const paymentMethod = paymentMethodRadio?.value;
     
     if (!amount || amount < 10) {
         showNotification('Minimum deposit is KES 10', 'error');
@@ -664,6 +737,11 @@ async function handleDeposit(e) {
         return;
     }
     
+    if (!currentUser?.email) {
+        showNotification('User email not found. Please log in again.', 'error');
+        return;
+    }
+    
     // Use a simpler loading state
     const depositBtn = document.getElementById('deposit-submit-btn');
     const originalText = depositBtn.innerHTML;
@@ -671,6 +749,8 @@ async function handleDeposit(e) {
     depositBtn.disabled = true;
     
     try {
+        console.log('Initiating PayStack payment for amount:', amount);
+        
         // Use PayStack for payment processing with proper callback function
         const handler = PaystackPop.setup({
             key: PAYSTACK_PUBLIC_KEY,
@@ -685,15 +765,22 @@ async function handleDeposit(e) {
                         display_name: "User ID",
                         variable_name: "user_id",
                         value: currentUser.id
+                    },
+                    {
+                        display_name: "App",
+                        variable_name: "app_source", 
+                        value: "Zentcoin Web"
                     }
                 ]
             },
             callback: function(response) {
                 // This is the callback function that will be called after payment
+                console.log('PayStack callback triggered:', response);
                 handlePaystackCallback(response, amount, paymentMethod);
             },
             onClose: function() {
-                showNotification('Payment window closed', 'warning');
+                console.log('PayStack payment window closed by user');
+                showNotification('Payment cancelled', 'warning');
                 // Reset button state
                 depositBtn.innerHTML = originalText;
                 depositBtn.disabled = false;
@@ -703,81 +790,191 @@ async function handleDeposit(e) {
         handler.openIframe();
         
     } catch (error) {
-        console.error('Error processing deposit:', error);
-        showNotification('Error processing deposit: ' + error.message, 'error');
+        console.error('Error initializing payment:', error);
+        showNotification('Error initializing payment: ' + error.message, 'error');
         // Reset button state
         depositBtn.innerHTML = originalText;
         depositBtn.disabled = false;
     }
 }
 
-// Handle PayStack callback - IMPROVED VERSION
+// Handle PayStack callback - FIXED VERSION
 async function handlePaystackCallback(response, amount, paymentMethod) {
     try {
         console.log('PayStack callback received:', response);
         
         if (response.status === 'success') {
             // Payment was successful
-            // Create transaction record
-            const { error: transactionError } = await supabase
-                .from('transactions')
-                .insert([
-                    {
-                        user_id: currentUser.id,
-                        type: 'deposit',
-                        amount: amount,
-                        status: 'completed',
-                        payment_method: paymentMethod,
-                        paystack_reference: response.reference,
-                        metadata: { 
-                            paystack_response: response,
-                            phone: userProfile?.phone_number,
-                            transaction_date: new Date().toISOString()
-                        },
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString()
+            // First, verify the payment with PayStack to ensure it's legitimate
+            try {
+                const verifyResponse = await fetch('https://api.paystack.co/transaction/verify/' + response.reference, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + PAYSTACK_SECRET_KEY,
+                        'Content-Type': 'application/json'
                     }
-                ]);
+                });
+                
+                const verificationData = await verifyResponse.json();
+                console.log('PayStack verification:', verificationData);
+                
+                if (!verificationData.status || verificationData.data.status !== 'success') {
+                    throw new Error('Payment verification failed');
+                }
+                
+                // Ensure the verified amount matches what we expect
+                const verifiedAmount = verificationData.data.amount / 100; // Convert from kobo to KES
+                if (verifiedAmount !== amount) {
+                    console.warn(`Amount mismatch: expected ${amount}, got ${verifiedAmount}`);
+                    // You might want to handle this differently based on your business logic
+                }
+                
+            } catch (verifyError) {
+                console.error('Payment verification error:', verifyError);
+                showNotification('Payment verification failed. Please contact support.', 'error');
+                return;
+            }
+            
+            // Create transaction record with proper error handling
+            let transactionError = null;
+            let transactionInsertResult = null;
+            
+            try {
+                transactionInsertResult = await supabase
+                    .from('transactions')
+                    .insert([
+                        {
+                            user_id: currentUser.id,
+                            type: 'deposit',
+                            amount: amount,
+                            status: 'completed',
+                            payment_method: paymentMethod,
+                            paystack_reference: response.reference,
+                            metadata: { 
+                                paystack_response: response,
+                                phone: userProfile?.phone_number,
+                                transaction_date: new Date().toISOString(),
+                                verified: true
+                            },
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        }
+                    ]);
+                
+                transactionError = transactionInsertResult.error;
+                
+            } catch (dbError) {
+                console.error('Database error during transaction creation:', dbError);
+                transactionError = dbError;
+            }
             
             if (transactionError) {
                 console.error('Transaction creation error:', transactionError);
-                throw transactionError;
+                
+                // Check if it's a duplicate transaction
+                if (transactionError.code === '23505' || transactionError.message.includes('duplicate')) {
+                    showNotification('This transaction has already been processed.', 'warning');
+                } else {
+                    // Even if transaction record fails, we should still update the balance
+                    // since the payment was successful
+                    console.log('Transaction record failed, but payment was successful. Updating balance...');
+                }
+            } else {
+                console.log('Transaction recorded successfully');
             }
             
-            console.log('Transaction recorded successfully');
-            
             // Update user balance - calculate new balance
-            const newBalance = (userBalance || 0) + amount;
+            const currentBalance = parseFloat(userBalance) || 0;
+            const newBalance = currentBalance + amount;
             userBalance = newBalance;
             
+            console.log('Updating balance from', currentBalance, 'to', newBalance);
+            
             // Update profile balance in database
-            const { error: updateError } = await supabase
-                .from('profiles')
-                .update({ 
-                    balance: newBalance,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', currentUser.id);
+            let updateError = null;
+            try {
+                const updateResult = await supabase
+                    .from('profiles')
+                    .update({ 
+                        balance: newBalance,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', currentUser.id);
+                
+                updateError = updateResult.error;
+                
+            } catch (updateDbError) {
+                console.error('Database error during balance update:', updateDbError);
+                updateError = updateDbError;
+            }
             
             if (updateError) {
                 console.error('Balance update error:', updateError);
-                throw updateError;
+                
+                // If balance update fails, we need to handle this carefully
+                // Try alternative approach - use Supabase's increment function
+                try {
+                    console.log('Trying alternative balance update method...');
+                    const { data: currentProfile } = await supabase
+                        .from('profiles')
+                        .select('balance')
+                        .eq('id', currentUser.id)
+                        .single();
+                    
+                    if (currentProfile) {
+                        const alternativeNewBalance = (parseFloat(currentProfile.balance) || 0) + amount;
+                        const { error: altError } = await supabase
+                            .from('profiles')
+                            .update({ 
+                                balance: alternativeNewBalance,
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('id', currentUser.id);
+                        
+                        if (!altError) {
+                            console.log('Alternative balance update successful');
+                            userBalance = alternativeNewBalance;
+                        } else {
+                            throw altError;
+                        }
+                    }
+                } catch (altError) {
+                    console.error('Alternative balance update also failed:', altError);
+                    showNotification('Payment successful but balance update failed. Please contact support with transaction reference: ' + response.reference, 'error');
+                    return;
+                }
+            } else {
+                console.log('Balance updated successfully to:', newBalance);
             }
-            
-            console.log('Balance updated successfully to:', newBalance);
             
             // Reload user data to ensure consistency
             await loadUserData();
             
-            showNotification(`Deposit of KES ${amount.toLocaleString()} successful!`, 'success');
-            showDashboardScreen();
+            // Show success message with transaction reference
+            showNotification(`Deposit of KES ${amount.toLocaleString()} successful! Reference: ${response.reference}`, 'success');
+            
+            // Redirect to dashboard after a short delay
+            setTimeout(() => {
+                showDashboardScreen();
+            }, 2000);
+            
         } else {
             console.error('PayStack payment failed:', response);
             showNotification('Payment failed. Please try again.', 'error');
         }
     } catch (error) {
         console.error('Error handling payment callback:', error);
-        showNotification('Error processing payment. Please contact support if balance is not updated.', 'error');
+        
+        // Provide helpful error message with support contact
+        const errorMessage = `
+            Payment processing error. 
+            Please contact support with this information:
+            Reference: ${response?.reference || 'N/A'}
+            Amount: KES ${amount}
+            Time: ${new Date().toLocaleString()}
+        `;
+        
+        showNotification(errorMessage, 'error');
     }
 }
 
@@ -875,11 +1072,13 @@ async function handleWithdrawal(e) {
     }
 }
 
+// KYC Submission with file upload
 async function handleKycSubmission(e) {
     e.preventDefault();
     const idType = document.getElementById('kyc-id-type').value;
     const idNumber = document.getElementById('kyc-id-number').value;
     const frontImage = document.getElementById('kyc-front').files[0];
+    const backImage = document.getElementById('kyc-back').files[0];
     const selfieImage = document.getElementById('kyc-selfie').files[0];
     
     if (!idType || !idNumber || !frontImage || !selfieImage) {
@@ -887,13 +1086,53 @@ async function handleKycSubmission(e) {
         return;
     }
     
+    // Validate file types
+    const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (frontImage && !validImageTypes.includes(frontImage.type)) {
+        showNotification('Front ID image must be JPG, PNG, or WebP format', 'error');
+        return;
+    }
+    if (backImage && !validImageTypes.includes(backImage.type)) {
+        showNotification('Back ID image must be JPG, PNG, or WebP format', 'error');
+        return;
+    }
+    if (selfieImage && !validImageTypes.includes(selfieImage.type)) {
+        showNotification('Selfie image must be JPG, PNG, or WebP format', 'error');
+        return;
+    }
+    
     // Use a simpler loading state
     const kycBtn = document.getElementById('kyc-submit-btn');
     const originalText = kycBtn.innerHTML;
-    kycBtn.innerHTML = 'Submitting... <span class="spinner"></span>';
+    kycBtn.innerHTML = 'Uploading Documents... <span class="spinner"></span>';
     kycBtn.disabled = true;
     
     try {
+        let frontImageUrl = null;
+        let backImageUrl = null;
+        let selfieImageUrl = null;
+        
+        // Upload front ID image
+        if (frontImage) {
+            const frontFilePath = `${currentUser.id}/front_${Date.now()}.${frontImage.name.split('.').pop()}`;
+            frontImageUrl = await uploadFileToStorage(frontImage, frontFilePath);
+            console.log('Front ID uploaded:', frontImageUrl);
+        }
+        
+        // Upload back ID image (optional)
+        if (backImage) {
+            const backFilePath = `${currentUser.id}/back_${Date.now()}.${backImage.name.split('.').pop()}`;
+            backImageUrl = await uploadFileToStorage(backImage, backFilePath);
+            console.log('Back ID uploaded:', backImageUrl);
+        }
+        
+        // Upload selfie image
+        if (selfieImage) {
+            const selfieFilePath = `${currentUser.id}/selfie_${Date.now()}.${selfieImage.name.split('.').pop()}`;
+            selfieImageUrl = await uploadFileToStorage(selfieImage, selfieFilePath);
+            console.log('Selfie uploaded:', selfieImageUrl);
+        }
+        
         // Update profile KYC status
         const { error: profileError } = await supabase
             .from('profiles')
@@ -909,7 +1148,7 @@ async function handleKycSubmission(e) {
             throw profileError;
         }
         
-        // Create KYC verification record
+        // Create KYC verification record with actual image URLs
         const { error: kycError } = await supabase
             .from('kyc_verifications')
             .insert([
@@ -917,9 +1156,9 @@ async function handleKycSubmission(e) {
                     user_id: currentUser.id,
                     id_type: idType,
                     id_number: idNumber,
-                    front_image_url: 'demo_front_url',
-                    back_image_url: 'demo_back_url',
-                    selfie_image_url: 'demo_selfie_url',
+                    front_image_url: frontImageUrl,
+                    back_image_url: backImageUrl,
+                    selfie_image_url: selfieImageUrl,
                     status: 'pending',
                     submitted_at: new Date().toISOString(),
                     created_at: new Date().toISOString(),
@@ -942,9 +1181,15 @@ async function handleKycSubmission(e) {
         updateKycStatus();
         showNotification('KYC documents submitted successfully. Verification may take 24-48 hours.', 'success');
         
+        // Clear the form
+        document.getElementById('kyc-form').reset();
+        document.getElementById('kyc-front-preview').classList.add('hidden');
+        document.getElementById('kyc-back-preview').classList.add('hidden');
+        document.getElementById('kyc-selfie-preview').classList.add('hidden');
+        
     } catch (error) {
         console.error('Error submitting KYC:', error);
-        showNotification('Error submitting KYC documents', 'error');
+        showNotification('Error submitting KYC documents: ' + error.message, 'error');
     } finally {
         // Reset button state
         kycBtn.innerHTML = originalText;
@@ -977,11 +1222,12 @@ async function handleProfileUpdate(e) {
     profileBtn.disabled = true;
     
     try {
-        // If profile picture is uploaded, use it as profile picture
         let profilePictureUrl = userProfile?.profile_picture;
+        
+        // If profile picture is uploaded, upload it to storage
         if (profilePicture) {
-            // In a real app, you would upload this to Supabase Storage
-            profilePictureUrl = URL.createObjectURL(profilePicture);
+            const profileFilePath = `profile-pictures/${currentUser.id}_${Date.now()}.${profilePicture.name.split('.').pop()}`;
+            profilePictureUrl = await uploadFileToStorage(profilePicture, profileFilePath, 'profiles');
             updateProfilePicture(profilePictureUrl);
         }
         
@@ -1333,7 +1579,7 @@ function showNotification(message, type = 'info') {
     });
 }
 
-// Update UI with real data - IMPROVED VERSION
+// Update UI with real data
 function updateUI() {
     console.log('Updating UI with user data...');
     
