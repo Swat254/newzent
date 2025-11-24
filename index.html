@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Zent Finance - Secure Mobile Trading</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+    <style>
+        :root {
+            --primary: #004321;
+            --secondary: #8BC34A;
+            --background: #FFFFFF;
+            --background-alt: #F8F9FA;
+            --accent-navy: #003366;
+            --accent-turquoise: #40E0D0;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --border-radius: 12px;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--background-alt);
+            color: var(--text-primary);
+            max-width: 480px;
+            margin: 0 auto;
+            position: relative;
+            min-height: 100vh;
+        }
+
+        .container {
+            padding: 16px;
+            padding-bottom: 80px;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--accent-navy));
+            color: white;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 0 0 var(--border-radius) var(--border-radius);
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo {
+            width: 36px;
+            height: 36px;
+            background: var(--secondary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+
+        .logo-text {
+            font-weight: bold;
+            font-size: 1.3rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .header-icon {
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .card {
+            background: var(--background);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+        }
+
+        .balance-card {
+            background: linear-gradient(135deg, var(--primary), var(--accent-navy));
+            color: white;
+            text-align: center;
+            padding: 25px 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .balance-label {
+            opacity: 0.9;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .balance-amount {
+            font-size: 2.2rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .profit-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .action-btn {
+            background: var(--background);
+            border: none;
+            border-radius: var(--border-radius);
+            padding: 15px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-3px);
+        }
+
+        .action-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            color: var(--primary);
+        }
+
+        .action-label {
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        .investment-plans {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .plan-card {
+            border: 1px solid #eaeaea;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            position: relative;
+        }
+
+        .plan-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .plan-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .plan-apy {
+            background: var(--secondary);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .plan-minimum {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 8px;
+        }
+
+        .invest-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            padding: 12px 16px;
+            width: 100%;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .invest-btn:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+        }
+
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-info {
+            display: flex;
+            align-items: center;
+        }
+
+        .transaction-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background-color: var(--background-alt);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            color: var(--primary);
+        }
+
+        .transaction-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .transaction-title {
+            font-weight: 500;
+        }
+
+        .transaction-date {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .transaction-amount {
+            font-weight: 600;
+        }
+
+        .amount-positive {
+            color: var(--success);
+        }
+
+        .amount-negative {
+            color: var(--danger);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            padding: 14px 16px;
+            width: 100%;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            position: relative;
+        }
+
+        .btn-primary:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            max-width: 480px;
+            margin: 0 auto;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-secondary);
+            flex: 1;
+            padding: 5px 0;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+        }
+
+        .nav-icon {
+            font-size: 1.3rem;
+            margin-bottom: 4px;
+        }
+
+        .nav-label {
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .auth-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary), var(--accent-navy));
+        }
+
+        .auth-card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 30px;
+            box-shadow: var(--shadow);
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .auth-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .auth-logo .logo {
+            width: 50px;
+            height: 50px;
+            font-size: 1.2rem;
+        }
+
+        .auth-logo .logo-text {
+            font-size: 1.8rem;
+        }
+
+        .auth-subtitle {
+            color: var(--text-secondary);
+            margin-top: 10px;
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .auth-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 15px 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            max-width: 90%;
+        }
+
+        .notification.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .notification.error {
+            border-left: 4px solid var(--danger);
+        }
+
+        .notification.warning {
+            border-left: 4px solid var(--warning);
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            border-left-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-16 {
+            margin-top: 16px;
+        }
+
+        .p-16 {
+            padding: 16px;
+        }
+
+        .account-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .account-item {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background: var(--background);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .account-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--background-alt);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            color: var(--primary);
+            overflow: hidden;
+        }
+
+        .profile-picture {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .account-details {
+            flex: 1;
+        }
+
+        .account-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .kyc-badge {
+            background: var(--success);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+        }
+
+        .verified-tick {
+            color: var(--success);
+            font-size: 0.9rem;
+        }
+
+        .account-description {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .support-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .support-option {
+            background: var(--background);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+        }
+
+        .support-icon {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .faq-item {
+            margin-bottom: 16px;
+            border: 1px solid #eaeaea;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+
+        .faq-question {
+            padding: 16px;
+            background: var(--background);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+        }
+
+        .faq-answer {
+            padding: 0 16px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            background: var(--background-alt);
+        }
+
+        .faq-item.active .faq-answer {
+            padding: 16px;
+            max-height: 500px;
+        }
+
+        .referral-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: var(--background);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .user-welcome {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .download-app {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--primary), var(--accent-navy));
+            color: white;
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            margin-top: 20px;
+            transition: transform 0.3s;
+        }
+
+        .download-app:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <!-- Authentication Screens -->
+    <div id="auth-screens">
+        <!-- Login Screen -->
+        <div id="login-screen" class="auth-container">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <div class="auth-logo">
+                        <div class="logo">Z</div>
+                        <div class="logo-text">Zent Finance</div>
+                    </div>
+                    <div class="auth-subtitle">Sign in to your account</div>
+                </div>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label class="form-label" for="login-email">Email</label>
+                        <input type="email" id="login-email" class="form-input" placeholder="Enter your email" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="login-password">Password</label>
+                        <input type="password" id="login-password" class="form-input" placeholder="Enter your password" required>
+                    </div>
+                    <button type="submit" class="btn-primary" id="login-btn">
+                        <span id="login-btn-text">Sign In</span>
+                        <span class="spinner hidden" id="login-spinner"></span>
+                    </button>
+                </form>
+                <div class="auth-footer">
+                    Don't have an account? <a href="#" class="auth-link" id="show-register">Sign Up</a>
+                </div>
+                <div class="auth-footer mt-16">
+                    <a href="#" class="auth-link" id="show-forgot-password">Forgot Password?</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registration Screen -->
+        <div id="register-screen" class="auth-container hidden">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <div class="auth-logo">
+                        <div class="logo">Z</div>
+                        <div class="logo-text">Zent Finance</div>
+                    </div>
+                    <div class="auth-subtitle">Create your account</div>
+                </div>
+                
+                <form id="register-form">
+                    <div class="form-group">
+                        <label class="form-label" for="register-fullname">Full Name</label>
+                        <input type="text" id="register-fullname" class="form-input" placeholder="Enter your full name" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="register-email">Email</label>
+                        <input type="email" id="register-email" class="form-input" placeholder="Enter your email" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="register-phone">Phone Number</label>
+                        <input type="tel" id="register-phone" class="form-input" placeholder="07XXXXXXXX or 254XXXXXXXXX" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="register-password">Password</label>
+                        <input type="password" id="register-password" class="form-input" placeholder="Create a password (min. 6 characters)" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="register-referral">Referral Code (Optional)</label>
+                        <input type="text" id="register-referral" class="form-input" placeholder="Enter referral code">
+                    </div>
+                    <button type="submit" class="btn-primary" id="register-btn">
+                        <span id="register-btn-text">Create Account</span>
+                        <span class="spinner hidden" id="register-spinner"></span>
+                    </button>
+                </form>
+                <div class="auth-footer">
+                    Already have an account? <a href="#" class="auth-link" id="show-login">Sign In</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forgot Password Screen -->
+        <div id="forgot-password-screen" class="auth-container hidden">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <div class="auth-logo">
+                        <div class="logo">Z</div>
+                        <div class="logo-text">Zent Finance</div>
+                    </div>
+                    <div class="auth-subtitle">Reset your password</div>
+                </div>
+                <form id="forgot-password-form">
+                    <div class="form-group">
+                        <label class="form-label" for="reset-email">Email</label>
+                        <input type="email" id="reset-email" class="form-input" placeholder="Enter your email" required>
+                    </div>
+                    <button type="submit" class="btn-primary" id="reset-btn">
+                        <span id="reset-btn-text">Send Reset Link</span>
+                        <span class="spinner hidden" id="reset-spinner"></span>
+                    </button>
+                </form>
+                <div class="auth-footer">
+                    Remember your password? <a href="#" class="auth-link" id="show-login-from-forgot">Sign In</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app" class="hidden">
+        <header>
+            <div class="logo-container">
+                <div class="logo">Z</div>
+                <div class="logo-text">Zent Finance</div>
+            </div>
+            <div class="header-actions">
+                <i class="fas fa-bell header-icon" id="notification-icon"></i>
+                <i class="fas fa-user-circle header-icon" id="user-icon"></i>
+            </div>
+        </header>
+
+        <div class="container">
+            <!-- Dashboard Screen -->
+            <div id="dashboard-screen">
+                <div class="balance-card card">
+                    <div class="user-welcome">
+                        <span class="user-name" id="welcome-name">Welcome, User</span>
+                        <span class="verified-tick hidden" id="user-verified-tick"><i class="fas fa-check-circle"></i></span>
+                    </div>
+                    <div class="balance-label">Total Balance</div>
+                    <div class="balance-amount" id="total-balance">KES 0.00</div>
+                    <div class="profit-indicator">
+                        <i class="fas fa-chart-line"></i>
+                        <span id="profit-text">+ KES 0.00 Today</span>
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <div class="action-btn" id="deposit-btn">
+                        <div class="action-icon"><i class="fas fa-plus-circle"></i></div>
+                        <div class="action-label">Deposit</div>
+                    </div>
+                    <div class="action-btn" id="withdraw-btn">
+                        <div class="action-icon"><i class="fas fa-minus-circle"></i></div>
+                        <div class="action-label">Withdraw</div>
+                    </div>
+                    <div class="action-btn" id="earn-btn">
+                        <div class="action-icon"><i class="fas fa-chart-line"></i></div>
+                        <div class="action-label">Earn</div>
+                    </div>
+                    <div class="action-btn" id="account-btn">
+                        <div class="action-icon"><i class="fas fa-user-circle"></i></div>
+                        <div class="action-label">Account</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <div class="section-title">Recent Transactions</div>
+                    </div>
+                    <div id="recent-transactions">
+                        <div class="text-center p-16">No recent transactions</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <div class="section-title">Investment Plans</div>
+                    </div>
+                    <div class="investment-plans" id="investment-plans-container">
+                        <!-- Plans will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deposit Screen -->
+            <div id="deposit-screen" class="hidden">
+                <div class="card">
+                    <div class="section-header">
+                        <div class="section-title">Deposit Funds</div>
+                    </div>
+                    <form id="deposit-form">
+                        <div class="form-group">
+                            <label class="form-label" for="deposit-amount">Amount (KES)</label>
+                            <input type="number" id="deposit-amount" class="form-input" placeholder="Minimum: KES 10" min="10" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Payment Method</label>
+                            <div style="display: flex; gap: 15px;">
+                                <div style="display: flex; align-items: center;">
+                                    <input type="radio" id="mpesa" name="payment-method" value="mpesa" checked>
+                                    <label for="mpesa" style="margin-left: 5px;">M-Pesa</label>
+                                </div>
+                                <div style="display: flex; align-items: center;">
+                                    <input type="radio" id="airtel" name="payment-method" value="airtel">
+                                    <label for="airtel" style="margin-left: 5px;">Airtel Money</label>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary" id="deposit-submit-btn">
+                            <span id="deposit-btn-text">Proceed to Payment</span>
+                            <span class="spinner hidden" id="deposit-spinner"></span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Withdrawal Screen -->
+            <div id="withdrawal-screen" class="hidden">
+                <div class="card">
+                    <div class="section-header">
+                        <div class="section-title">Withdraw Funds</div>
+                    </div>
+                    <form id="withdrawal-form">
+                        <div class="form-group">
+                            <label class="form-label" for="withdrawal-amount">Amount (KES)</label>
+                            <input type="number" id="withdrawal-amount" class="form-input" placeholder="Minimum: KES 100" min="100" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="withdrawal-phone">Phone Number</label>
+                            <input type="tel" id="withdrawal-phone" class="form-input" placeholder="07XXXXXXXX or 254XXXXXXXXX" required>
+                        </div>
+                        <button type="submit" class="btn-primary" id="withdrawal-submit-btn">
+                            <span id="withdrawal-btn-text">Submit Withdrawal Request</span>
+                            <span class="spinner hidden" id="withdrawal-spinner"></span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Earn Screen -->
+            <div id="earn-screen" class="hidden">
+                <div class="card">
+                    <div class="section-header">
+                        <div class="section-title">Investment Plans</div>
+                    </div>
+                    <div class="investment-plans" id="earn-plans-container">
+                        <!-- Plans will be loaded here -->
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <div class="section-title">Active Investments</div>
+                    </div>
+                    <div id="active-investments">
+                        <div class="text-center p-16">No active investments</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <div class="section-title">Referral Program</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Your Referral Code</label>
+                        <div style="display: flex;">
+                            <input type="text" id="referral-code" class="form-input" readonly style="flex: 1;">
+                            <button type="button" class="btn-primary" id="copy-referral" style="width: auto; margin-left: 8px;">Copy</button>
+                        </div>
+                    </div>
+                    
+                    <div class="referral-stats">
+                        <div class="stat-card">
+                            <div class="stat-value" id="referrals-count">0</div>
+                            <div class="stat-label">People Referred</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="referral-earnings">KES 0.00</div>
+                            <div class="stat-label">Total Earnings</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Screen -->
+            <div id="account-screen" class="hidden">
+                <div class="card">
+                    <div class="section-header">
+                        <div class="section-title">Account</div>
+                    </div>
+                    <div class="account-menu">
+                        <div class="account-item" id="profile-item">
+                            <div class="account-icon" id="profile-picture-container">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="account-details">
+                                <div class="account-title" id="profile-title">
+                                    Profile
+                                    <span class="verified-tick hidden" id="profile-verified-tick"><i class="fas fa-check-circle"></i></span>
+                                </div>
+                                <div class="account-description">Manage your personal information</div>
+                            </div>
+                        </div>
+
+                        <div class="account-item" id="kyc-item">
+                            <div class="account-icon">
+                                <i class="fas fa-id-card"></i>
+                            </div>
+                            <div class="account-details">
+                                <div class="account-title">
+                                    KYC Verification
+                                    <span class="verified-tick hidden" id="kyc-verified-tick"><i class="fas fa-check-circle"></i></span>
+                                </div>
+                                <div class="account-description">Verify your identity to enable withdrawals</div>
+                            </div>
+                        </div>
+
+                        <div class="account-item" id="download-app-item">
+                            <div class="account-icon">
+                                <i class="fas fa-download"></i>
+                            </div>
+                            <div class="account-details">
+                                <div class="account-title">Download App</div>
+                                <div class="account-description">Get our mobile app for better experience</div>
+                            </div>
+                        </div>
+
+                        <div class="account-item" id="support-item">
+                            <div class="account-icon">
+                                <i class="fas fa-headset"></i>
+                            </div>
+                            <div class="account-details">
+                                <div class="account-title">Support</div>
+                                <div class="account-description">Get help and contact customer service</div>
+                            </div>
+                        </div>
+
+                        <div class="account-item" id="logout-item">
+                            <div class="account-icon">
+                                <i class="fas fa-sign-out-alt"></i>
+                            </div>
+                            <div class="account-details">
+                                <div class="account-title">Logout</div>
+                                <div class="account-description">Sign out of your account</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <a href="https://median.co/share/mbbbjnj#apk" class="download-app" target="_blank">
+                        <i class="fas fa-download"></i>
+                        Download Mobile App
+                    </a>
+                </div>
+            </div>
+
+            <!-- Profile Screen -->
+            <div id="profile-screen" class="hidden">
+                <div class="card">
+                    <div class="section-header">
+                        <div class="section-title">Profile Information</div>
+                    </div>
+                    <form id="profile-form">
+                        <div class="form-group">
+                            <label class="form-label" for="profile-fullname">Full Name</label>
+                            <input type="text" id="profile-fullname" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="profile-email">Email</label>
+                            <input type="email" id="profile-email" class="form-input" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="profile-phone">Phone Number</label>
+                            <input type="tel" id="profile-phone" class="form-input" placeholder="07XXXXXXXX or 254XXXXXXXXX" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="profile-picture">Profile Picture</label>
+                            <input type="file" id="profile-picture" class="form-input" accept="image/*">
+                        </div>
+                        <button type="submit" class="btn-primary" id="profile-submit-btn">
+                            <span id="profile-btn-text">Update Profile</span>
+                            <span class="spinner hidden" id="profile-spinner"></span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- KYC Screen -->
+            <div id="kyc-screen" class="hidden">
+                <div class="card">
+                    <div class="section-header">
+                        <div class="section-title">KYC Verification</div>
+                    </div>
+                    <div id="kyc-status" class="mb-16">
+                        <!-- KYC status will be displayed here -->
+                    </div>
+                    
+                    <!-- Show KYC form only if not verified -->
+                    <div id="kyc-form-container">
+                        <form id="kyc-form">
+                            <div class="form-group">
+                                <label class="form-label" for="kyc-id-type">ID Type</label>
+                                <select id="kyc-id-type" class="form-input" required>
+                                    <option value="">Select ID Type</option>
+                                    <option value="national_id">National ID</option>
+                                    <option value="passport">Passport</option>
+                                    <option value="driving_license">Driving License</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="kyc-id-number">ID Number</label>
+                                <input type="text" id="kyc-id-number" class="form-input" placeholder="Enter ID number" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="kyc-front">Front of ID</label>
+                                <input type="file" id="kyc-front" class="form-input" accept="image/*" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="kyc-back">Back of ID</label>
+                                <input type="file" id="kyc-back" class="form-input" accept="image/*">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="kyc-selfie">Selfie with ID</label>
+                                <input type="file" id="kyc-selfie" class="form-input" accept="image/*" required>
+                            </div>
+                            <button type="submit" class="btn-primary" id="kyc-submit-btn">
+                                <span id="kyc-btn-text">Submit for Verification</span>
+                                <span class="spinner hidden" id="kyc-spinner"></span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Support Screen -->
+            <div id="support-screen" class="hidden">
+                <div class="card">
+                    <div class="section-header">
+                        <div class="section-title">Support Center</div>
+                    </div>
+                    <p>How can we help you today?</p>
+                    
+                    <div class="support-options">
+                        <div class="support-option" id="faq-option">
+                            <div class="support-icon">
+                                <i class="fas fa-question-circle"></i>
+                            </div>
+                            <div class="support-title">FAQ</div>
+                            <div class="support-description">Find answers to common questions</div>
+                        </div>
+                        
+                        <div class="support-option" id="contact-option">
+                            <div class="support-icon">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div class="support-title">Contact Us</div>
+                            <div class="support-description">Get in touch with our team</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="section-header">
+                        <div class="section-title">Contact Information</div>
+                    </div>
+                    <div class="account-item">
+                        <div class="account-icon">
+                            <i class="fab fa-whatsapp"></i>
+                        </div>
+                        <div class="account-details">
+                            <div class="account-title">WhatsApp</div>
+                            <div class="account-description">+254 784 575 544</div>
+                        </div>
+                    </div>
+                    
+                    <div class="account-item">
+                        <div class="account-icon">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <div class="account-details">
+                            <div class="account-title">Email</div>
+                            <div class="account-description">zentfinance@gmail.com</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FAQ Screen -->
+            <div id="faq-screen" class="hidden">
+                <div class="card">
+                    <div class="section-header">
+                        <div class="section-title">Frequently Asked Questions</div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            How do I start investing with Zent Finance?
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            To start investing, simply register an account, complete KYC verification, deposit funds, and choose from our available investment plans. Minimum deposit is KES 10.
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <div class="faq-question">
+                            What is the minimum investment amount?
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="faq-answer">
+                            Minimum investment amounts vary by asset: USDT (KES 100), Bitcoin (KES 500), Gold (KES 15,000), Coal (KES 20,000), GENZ (KES 200).
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <div class="nav-item active" data-screen="dashboard-screen">
+                <div class="nav-icon"><i class="fas fa-home"></i></div>
+                <div class="nav-label">Dashboard</div>
+            </div>
+            <div class="nav-item" data-screen="earn-screen">
+                <div class="nav-icon"><i class="fas fa-chart-line"></i></div>
+                <div class="nav-label">Earn</div>
+            </div>
+            <div class="nav-item" data-screen="deposit-screen">
+                <div class="nav-icon"><i class="fas fa-plus-circle"></i></div>
+                <div class="nav-label">Deposit</div>
+            </div>
+            <div class="nav-item" data-screen="withdrawal-screen">
+                <div class="nav-icon"><i class="fas fa-minus-circle"></i></div>
+                <div class="nav-label">Withdraw</div>
+            </div>
+            <div class="nav-item" data-screen="account-screen">
+                <div class="nav-icon"><i class="fas fa-user-circle"></i></div>
+                <div class="nav-label">Account</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification-container"></div>
+
+    <!-- External JavaScript File -->
+    <script src="script.js"></script>
+</body>
+</html>
